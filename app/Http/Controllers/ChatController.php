@@ -27,44 +27,78 @@ class ChatController extends Controller
                 // Store user message with guide reference
                 ChatMessage::create([
                     'session_id' => session()->getId(),
-                    'title' => $guide->title, // Use guide title for consistency
-                    'message' => $message,
-                    'type' => 'user',
-                    'is_faq' => false,
-                    'frequency' => 1,
-                    'guide_id' => $guide->id
-                ]);
-
-                // Store bot response
-                ChatMessage::create([
-                    'session_id' => session()->getId(),
                     'title' => $guide->title,
-                    'message' => $guide->solution,
-                    'type' => 'bot',
+                    'message' => $message,
+                    'type' => 'user',
                     'is_faq' => false,
                     'frequency' => 1,
                     'guide_id' => $guide->id
                 ]);
 
-                // Update FAQ status based on frequency
-                ChatMessage::updateFAQStatus();
-            } else {
-                // Store user message without guide
-                ChatMessage::create([
-                    'session_id' => session()->getId(),
-                    'title' => $message,
-                    'message' => $message,
-                    'type' => 'user',
-                    'is_faq' => false,
-                    'frequency' => 1,
-                    'guide_id' => null
+                return response()->json([
+                    'guide' => $guide
                 ]);
-            }
+            } else {
+                // Check if OpenAI API key is configured
+                if (!config('openai.api_key')) {
+                    Log::warning('OpenAI API key is not configured');
+                    return response()->json([
+                        'guide' => null,
+                        'error' => 'AI assistance is currently unavailable.'
+                    ]);
+                }
 
-            return response()->json(['guide' => $guide]);
+                try {
+                    Log::info('Attempting OpenAI request with API key: ' . substr(config('openai.api_key'), 0, 7) . '...');
+                    
+                    // No guide found, use AI
+                    $response = OpenAI::chat()->create([
+                        'model' => 'gpt-3.5-turbo',
+                        'messages' => [
+                            ['role' => 'system', 'content' => 'You are a helpful technical support assistant. Provide clear, step-by-step solutions.'],
+                            ['role' => 'user', 'content' => $message],
+                        ],
+                        'temperature' => 0.7,
+                        'max_tokens' => 500,
+                    ]);
+
+                    // Store user message
+                    ChatMessage::create([
+                        'session_id' => session()->getId(),
+                        'title' => 'User Query',
+                        'message' => $message,
+                        'type' => 'user',
+                        'is_faq' => false,
+                        'frequency' => 1,
+                    ]);
+
+                    // Store AI response
+                    ChatMessage::create([
+                        'session_id' => session()->getId(),
+                        'title' => 'AI Response',
+                        'message' => $response->choices[0]->message->content,
+                        'type' => 'ai',
+                        'is_faq' => false,
+                        'frequency' => 1,
+                    ]);
+
+                    return response()->json([
+                        'guide' => null,
+                        'ai_response' => $response->choices[0]->message->content
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('OpenAI error: ' . $e->getMessage());
+                    return response()->json([
+                        'guide' => null,
+                        'error' => 'AI service is temporarily unavailable. Please try again later.'
+                    ], 200);
+                }
+            }
         } catch (\Exception $e) {
-            Log::error('Troubleshoot error: ' . $e->getMessage());
-            return response()->json(['error' => 'Internal server error'], 500);
+            Log::error('Error in troubleshoot: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'An error occurred while processing your request.'
+            ], 200);
         }
     }
 
