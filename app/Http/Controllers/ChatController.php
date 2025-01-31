@@ -134,23 +134,27 @@ class ChatController extends Controller
 
     public function suggestions(Request $request)
     {
-        $query = $request->input('q');
+        $query = $request->input('query');
         
         if (empty($query)) {
             return response()->json(['suggestions' => []]);
         }
 
-        $guides = TroubleshootingGuide::search($query)
-            ->limit(5)
-            ->get(['id', 'title', 'description', 'solution'])
-            ->map(function($guide) {
-                return [
-                    'id' => $guide->id,
-                    'title' => $guide->title,
-                    'type' => 'guide',
-                    'solution' => $guide->solution
-                ];
-            });
+        $guides = TroubleshootingGuide::where(function($q) use ($query) {
+            $q->where('title', 'LIKE', "%{$query}%")
+              ->orWhere('description', 'LIKE', "%{$query}%")
+              ->orWhereJsonContains('tags', strtolower($query));
+        })
+        ->limit(5)
+        ->get(['id', 'title', 'description'])
+        ->map(function($guide) {
+            return [
+                'id' => $guide->id,
+                'title' => $guide->title,
+                'type' => 'guide',
+                'description' => $guide->description
+            ];
+        });
 
         return response()->json(['suggestions' => $guides]);
     }

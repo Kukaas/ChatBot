@@ -10,6 +10,7 @@ export default function ChatWidget() {
     const [topFAQs, setTopFAQs] = useState([]);
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
+    const [inputValue, setInputValue] = useState('');
 
     const { data, setData, processing } = useForm({
         message: '',
@@ -85,17 +86,15 @@ export default function ChatWidget() {
 
     const handleInputChange = async (e) => {
         const value = e.target.value;
+        setInputValue(value);
         setData('message', value);
-
-        if (value.length > 2) {
+        
+        if (value.length > 0) {
             try {
-                const response = await axios.get('/api/chat/suggestions', {
-                    params: { q: value }
-                });
-                setSuggestions(response.data.suggestions || []);
+                const response = await axios.get(`/api/chat/suggestions?query=${encodeURIComponent(value)}`);
+                setSuggestions(response.data.suggestions);
             } catch (error) {
-                console.error('Error getting suggestions:', error);
-                setSuggestions([]);
+                console.error('Error fetching suggestions:', error);
             }
         } else {
             setSuggestions([]);
@@ -192,37 +191,43 @@ export default function ChatWidget() {
                             </svg>
                         </button>
                         {showFAQ && (
-                            <div className="px-5 py-3 space-y-2 bg-gray-800/50">
-                                {topFAQs.map((faq) => (
-                                    <button
-                                        key={faq.id}
-                                        onClick={() => handleSuggestionClick(faq)}
-                                        className="w-full text-left px-4 py-3 text-base text-gray-300 
-                                                 rounded-md hover:bg-white/10 
-                                                 transition-all duration-200 ease-in-out hover:translate-x-1
-                                                 flex items-center justify-between"
-                                    >
-                                        <div className="flex items-center space-x-2">
-                                            {faq.frequency >= 3 ? (
-                                                <span className="text-indigo-400">🔥</span>
-                                            ) : (
-                                                <span className="text-indigo-400">#</span>
+                            <div className="px-5 py-3">
+                                <div className="flex space-x-3 overflow-x-auto 
+                                                  scrollbar-thin scrollbar-thumb-gray-500/50 scrollbar-track-gray-800/30 
+                                                  hover:scrollbar-thumb-gray-400/50
+                                                  pb-2 px-1"
+                                >
+                                    {topFAQs.map((faq) => (
+                                        <button
+                                            key={faq.id}
+                                            onClick={() => handleSuggestionClick(faq)}
+                                            className="flex-shrink-0 px-4 py-3 text-base text-gray-300 
+                                                     bg-gray-800/50 rounded-md hover:bg-white/10 
+                                                     transition-all duration-200 ease-in-out hover:translate-y-[-2px]
+                                                     flex flex-col space-y-2 min-w-[200px] max-w-[250px]"
+                                        >
+                                            <div className="flex items-center space-x-2">
+                                                {faq.frequency >= 3 ? (
+                                                    <span className="text-indigo-400">🔥</span>
+                                                ) : (
+                                                    <span className="text-indigo-400">#</span>
+                                                )}
+                                                <span>{faq.title}</span>
+                                            </div>
+                                            {faq.frequency >= 3 && (
+                                                <span className="text-xs text-indigo-400 bg-indigo-400/10 px-2 py-1 rounded-full">
+                                                    Trending • {faq.frequency} times
+                                                </span>
                                             )}
-                                            <span>{faq.title}</span>
-                                        </div>
-                                        {faq.frequency >= 3 && (
-                                            <span className="text-xs text-indigo-400 bg-indigo-400/10 px-2 py-1 rounded-full">
-                                                Trending • {faq.frequency} times
-                                            </span>
-                                        )}
-                                    </button>
-                                ))}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         )}
                     </div>
 
                     {/* Chat Messages */}
-                    <div className="flex-1 overflow-y-auto p-5 space-y-5">
+                    <div className="flex-1 overflow-y-auto p-5 space-y-5 scrollbar-thin">
                         {messages.map((message, index) => (
                             <div
                                 key={index}
@@ -257,40 +262,50 @@ export default function ChatWidget() {
                         <div ref={messagesEndRef} />
                     </div>
 
-                    {/* Suggestions */}
-                    {suggestions.length > 0 && (
-                        <div className="px-4 py-2 border-t border-gray-700 bg-gray-800">
-                            <div className="text-sm font-medium text-gray-300 mb-2">
-                                Suggested guides:
+                    {/* Input Form with Suggestions */}
+                    <form onSubmit={handleSubmit} className="p-5 bg-gray-800/50 rounded-b-lg backdrop-blur-sm relative">
+                        {/* Suggestions Dropdown */}
+                        {suggestions.length > 0 && (
+                            <div className="absolute left-0 right-0 bottom-[100%] mx-5 mb-2">
+                                <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto scrollbar-thin">
+                                    <div className="text-sm font-medium text-gray-300 p-3 border-b border-gray-700">
+                                        Suggestions:
+                                    </div>
+                                    <div className="p-2">
+                                        {suggestions.map((suggestion) => (
+                                            <button
+                                                key={suggestion.id}
+                                                onClick={() => {
+                                                    handleSuggestionClick(suggestion);
+                                                    setInputValue('');
+                                                    setSuggestions([]);
+                                                }}
+                                                className="w-full text-left px-3 py-2 text-sm text-gray-300 
+                                                         rounded-md hover:bg-gray-700/50
+                                                         transition-colors duration-150 ease-in-out
+                                                         flex flex-col gap-1"
+                                            >
+                                                <span className="font-medium">{suggestion.title}</span>
+                                                <span className="text-xs text-gray-400 line-clamp-1">
+                                                    {suggestion.description}
+                                                </span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
-                            <div className="space-y-1">
-                                {suggestions.map((suggestion) => (
-                                    <button
-                                        key={suggestion.id}
-                                        onClick={() => handleSuggestionClick(suggestion)}
-                                        className="w-full text-left px-3 py-2 text-sm text-gray-300 
-                                                 rounded-md hover:bg-gray-700 
-                                                 transition-colors duration-150 ease-in-out"
-                                    >
-                                        {suggestion.title}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+                        )}
 
-                    {/* Input Form */}
-                    <form onSubmit={handleSubmit} className="p-5 bg-gray-800/50 rounded-b-lg backdrop-blur-sm">
+                        {/* Input and Send Button */}
                         <div className="flex space-x-3">
                             <input
                                 type="text"
-                                ref={inputRef}
                                 value={data.message}
                                 onChange={handleInputChange}
-                                placeholder="Type your message..."
-                                className="flex-1 rounded-lg bg-white/10 border-0 px-4 py-3 
-                                         text-gray-100 placeholder-gray-400 text-base
-                                         focus:ring-2 focus:ring-indigo-500 transition-all duration-200"
+                                ref={inputRef}
+                                className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                placeholder="Type your question here..."
+                                disabled={processing}
                             />
                             <button
                                 type="submit"
