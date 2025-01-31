@@ -267,30 +267,32 @@ export default function ChatWidget() {
                         {/* Suggestions Dropdown */}
                         {suggestions.length > 0 && (
                             <div className="absolute left-0 right-0 bottom-[100%] mx-5 mb-2">
-                                <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto scrollbar-thin">
-                                    <div className="text-sm font-medium text-gray-300 p-3 border-b border-gray-700">
+                                <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-60 flex flex-col">
+                                    <div className="text-sm font-medium text-gray-300 p-3 border-b border-gray-700 sticky top-0 bg-gray-800 z-10">
                                         Suggestions:
                                     </div>
-                                    <div className="p-2">
-                                        {suggestions.map((suggestion) => (
-                                            <button
-                                                key={suggestion.id}
-                                                onClick={() => {
-                                                    handleSuggestionClick(suggestion);
-                                                    setInputValue('');
-                                                    setSuggestions([]);
-                                                }}
-                                                className="w-full text-left px-3 py-2 text-sm text-gray-300 
-                                                         rounded-md hover:bg-gray-700/50
-                                                         transition-colors duration-150 ease-in-out
-                                                         flex flex-col gap-1"
-                                            >
-                                                <span className="font-medium">{suggestion.title}</span>
-                                                <span className="text-xs text-gray-400 line-clamp-1">
-                                                    {suggestion.description}
-                                                </span>
-                                            </button>
-                                        ))}
+                                    <div className="overflow-y-auto scrollbar-thin">
+                                        <div className="p-2">
+                                            {suggestions.map((suggestion) => (
+                                                <button
+                                                    key={suggestion.id}
+                                                    onClick={() => {
+                                                        handleSuggestionClick(suggestion);
+                                                        setInputValue('');
+                                                        setSuggestions([]);
+                                                    }}
+                                                    className="w-full text-left px-3 py-2 text-sm text-gray-300 
+                                                             rounded-md hover:bg-gray-700/50
+                                                             transition-colors duration-150 ease-in-out
+                                                             flex flex-col gap-1"
+                                                >
+                                                    <span className="font-medium">{suggestion.title}</span>
+                                                    <span className="text-xs text-gray-400 line-clamp-1">
+                                                        {suggestion.description}
+                                                    </span>
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
